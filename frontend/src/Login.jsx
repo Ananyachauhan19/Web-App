@@ -1,25 +1,36 @@
 import { useState } from 'react';
 
-const FIXED_USERNAME = 'admin';
-const FIXED_PASSWORD = 'techeeks2025';
-
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (username === FIXED_USERNAME && password === FIXED_PASSWORD) {
-      setError('');
-      onLogin();
-    } else {
-      setError('Invalid credentials');
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('http://localhost:5000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      if (res.ok) {
+        onLogin();
+      } else {
+        const data = await res.json();
+        setError(data.message || 'Login failed');
+      }
+    } catch (err) {
+      setError('Network error');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-200">
+    <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-200 min-h-screen min-w-full">
       <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl border border-blue-100">
         <div className="flex flex-col items-center mb-6">
           <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center mb-2 shadow-lg">
@@ -56,8 +67,9 @@ export default function Login({ onLogin }) {
           <button
             type="submit"
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg shadow transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
+            disabled={loading}
           >
-            Login
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
       </div>
