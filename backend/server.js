@@ -1,4 +1,3 @@
-// Basic Express server with MongoDB connection and fixed login
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -17,10 +16,10 @@ const PORT = 5000;
 
 // Google Sheets setup
 const SPREADSHEET_ID = '1Y9eTu0_Avzs8jM_vCk-XDE-Q7xjYyyontO-cLniCGps';
-const SHEET_NAME = 'Sheet1'; // Change if your sheet name is different
+const SHEET_NAME = 'Sheet1'; 
 
 const auth = new google.auth.GoogleAuth({
-  keyFile: 'credentials.json', // Downloaded from Google Cloud Console
+  keyFile: 'credentials.json', 
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
@@ -41,18 +40,17 @@ async function highlightRow(qrId) {
   const rows = res.data.values;
   if (!rows) return { found: false };
 
-  // Find row index (skip header), search in column I (index 8)
   let rowIndex = -1;
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][8] === qrId) { // Column I is index 8
-      rowIndex = i + 1; // 1-based index for Sheets API
+    if (rows[i][8] === qrId) { 
+      rowIndex = i + 1; 
       break;
     }
   }
   console.log('QR_ID:', qrId, 'Row found at:', rowIndex);
   if (rowIndex === -1) return { found: false };
 
-  // Highlight row in yellow
+  
   try {
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
@@ -61,7 +59,7 @@ async function highlightRow(qrId) {
           {
             repeatCell: {
               range: {
-                sheetId: 0, // Usually 0 for the first sheet, change if needed
+                sheetId: 0, 
                 startRowIndex: rowIndex - 1,
                 endRowIndex: rowIndex,
               },
@@ -97,7 +95,7 @@ app.post('/api/scan', async (req, res) => {
   }
 });
 
-// Fixed credentials
+
 const FIXED_USER = { username: 'admin', password: 'password123' };
 
 app.post('/api/login', (req, res) => {
