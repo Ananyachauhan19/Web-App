@@ -14,7 +14,7 @@ export default function QRCamera() {
     setStatus('Sending to backend...');
     setScanning(true);
     try {
-    const response = await fetch('https://web-app-rpgh.onrender.com/api/scan', {
+    const response = await fetch('https://web-app-p658.onrender.com/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ qrId: qrText }),
