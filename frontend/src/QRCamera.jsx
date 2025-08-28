@@ -14,7 +14,7 @@ export default function QRCamera() {
     setStatus('Sending to backend...');
     setScanning(true);
     try {
-      const res = await fetch('http://localhost:5000/api/scan', {
+      const res = await fetch('https://web-app-npyk.onrender.com/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ qrId: qrText })
@@ -23,10 +23,10 @@ export default function QRCamera() {
       if (res.ok && data.success) {
         setStatus('✅ Row highlighted in sheet!');
       } else {
-        setStatus(`❌ Error: ${data.message || 'Failed to highlight row'}`);
+            setStatus(`❌ Error: ${data.message || 'Failed to highlight row'}`);
       }
     } catch (err) {
-      setStatus(`❌ Error: ${err.message || 'Failed to connect to backend'}`);
+          setStatus(`❌ Error: ${err.message || 'Failed to connect to backend'}`);
     } finally {
       setScanning(false);
       if (codeReader && typeof codeReader.reset === 'function') codeReader.reset();
