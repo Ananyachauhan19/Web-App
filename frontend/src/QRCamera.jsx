@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { BrowserQRCodeReader } from '@zxing/browser';
 
 export default function QRCamera() {
   const videoRef = useRef(null);
@@ -13,9 +14,17 @@ export default function QRCamera() {
     setStatus('Sending to backend...');
     setScanning(true);
     try {
-      // Simulated API call for demo
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setStatus('✅ Row highlighted in sheet!');
+      const res = await fetch('http://localhost:5000/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qrId: qrText })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setStatus('✅ Row highlighted in sheet!');
+      } else {
+        setStatus(`❌ Error: ${data.message || 'Failed to highlight row'}`);
+      }
     } catch (err) {
       setStatus(`❌ Error: ${err.message || 'Failed to connect to backend'}`);
     } finally {
@@ -28,11 +37,27 @@ export default function QRCamera() {
     setStatus('Starting camera...');
     setScanning(true);
     setGalleryImage(null);
-    
-    // Simulate camera scanning for demo
-    setTimeout(() => {
-      setStatus('Scanning live...');
-    }, 500);
+    const codeReader = new BrowserQRCodeReader();
+    try {
+      const result = await codeReader.decodeFromVideoDevice(
+        undefined,
+        videoRef.current,
+        (res, err, controls) => {
+          if (res) {
+            setStatus('QR code found: ' + res.getText());
+            controls.stop();
+            handleQRResult(res.getText(), codeReader);
+          } else if (err && err.name !== 'NotFoundException') {
+            setStatus('Error: ' + err.message);
+          } else {
+            setStatus('Scanning live...');
+          }
+        }
+      );
+    } catch (err) {
+      setStatus('❌ Error: ' + (err.message || 'Failed to start camera'));
+      setScanning(false);
+    }
   };
 
   const handleGalleryClick = () => {
@@ -45,13 +70,24 @@ export default function QRCamera() {
       setStatus('Processing image...');
       setScanning(true);
       setGalleryImage(URL.createObjectURL(file));
-      
-      // Simulate QR detection for demo
-      setTimeout(() => {
-        const mockQRResult = 'DEMO_QR_' + Date.now();
-        setStatus('QR code found: ' + mockQRResult);
-        handleQRResult(mockQRResult, null);
-      }, 2000);
+      try {
+        const codeReader = new BrowserQRCodeReader();
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.onload = async () => {
+          try {
+            const result = await codeReader.decodeFromImageElement(img);
+            setStatus('QR code found: ' + result.getText());
+            handleQRResult(result.getText(), codeReader);
+          } catch (err) {
+            setStatus('❌ Error: ' + (err.message || 'No QR code found in image'));
+            setScanning(false);
+          }
+        };
+      } catch (err) {
+        setStatus('❌ Error: ' + (err.message || 'Failed to process image'));
+        setScanning(false);
+      }
     }
   };
 
