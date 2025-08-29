@@ -17,7 +17,7 @@ const SPREADSHEET_ID = '1Y9eTu0_Avzs8jM_vCk-XDE-Q7xjYyyontO-cLniCGps';
 const SHEET_NAME = 'Sheet1';
 
 const auth = new google.auth.GoogleAuth({
-  keyFile: 'credentials.json',
+  credentials: process.env.GOOGLE_CREDENTIALS ? JSON.parse(process.env.GOOGLE_CREDENTIALS) : undefined,
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
