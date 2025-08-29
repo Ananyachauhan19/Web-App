@@ -92,14 +92,14 @@ export default function QRCamera() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-900">
+    <div className="w-full min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-900">
       {/* IEEE Header Banner */}
-      <header className="w-full bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-800 border-b-4 border-blue-500 shadow-2xl">
+      <header className="w-full bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-800 border-b-4 border-slate-500 shadow-2xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* IEEE Logo and Title Section */}
           <div className="flex flex-col lg:flex-row items-center justify-between mb-8">
             <div className="flex items-center gap-6 mb-6 lg:mb-0">
-              <div className="flex-shrink-0 bg-white rounded-2xl p-2 sm:p-3 shadow-xl border-4 border-blue-300 flex items-center justify-center" style={{ minWidth: '64px', minHeight: '48px', maxWidth: '120px', maxHeight: '80px' }}>
+              <div className="flex-shrink-0 bg-white rounded-2xl p-2 sm:p-3 shadow-xl border-4 border-slate-300 flex items-center justify-center" style={{ minWidth: '64px', minHeight: '48px', maxWidth: '120px', maxHeight: '80px' }}>
                 {/* IEEE SB GEHU Official Logo */}
                 <img 
                   src="/assets/IEEE_png.png" 
