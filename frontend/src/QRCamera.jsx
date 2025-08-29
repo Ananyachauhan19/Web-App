@@ -102,7 +102,7 @@ export default function QRCamera() {
               <div className="flex-shrink-0 bg-white rounded-2xl p-2 sm:p-3 shadow-xl border-4 border-slate-300 flex items-center justify-center" style={{ minWidth: '64px', minHeight: '48px', maxWidth: '120px', maxHeight: '80px' }}>
                 {/* IEEE SB GEHU Official Logo */}
                 <img 
-                  src="/assets/IEEE_png.png" 
+                  src="/assets/IEEE.png" 
                   alt="IEEE SB GEHU Logo" 
                   className="w-full h-full max-w-[100px] max-h-[60px] object-contain"
                   style={{ display: 'block', margin: '0 auto' }}
