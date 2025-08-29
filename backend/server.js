@@ -2,69 +2,95 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const { google } = require('googleapis');
+const fs = require('fs');
 const mongoose = require('mongoose');
-
 // MongoDB connection
-const MONGO_URI = 'mongodb+srv://ananyachauhan112005:ananya123@cluster0.ie7dvub.mongodb.net/?retryWrites=true&w=majority';
+const MONGO_URI = 'mongodb+srv://ananyachauhan112005:ananya123@cluster0.ie7dvub.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0'; // Replace <db_password> with your actual password
 mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
+
+// Google Sheets setup
 const SPREADSHEET_ID = '1Y9eTu0_Avzs8jM_vCk-XDE-Q7xjYyyontO-cLniCGps';
-const SHEET_NAME = 'Sheet1';
+const SHEET_NAME = 'Sheet1'; 
 
-const auth = new google.auth.GoogleAuth({
-  credentials: process.env.GOOGLE_CREDENTIALS ? JSON.parse(process.env.GOOGLE_CREDENTIALS) : undefined,
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-});
+// Prefer credentials from environment (Render Secret or env var), with fallbacks
+let googleAuthConfig;
+try {
+  if (process.env.GOOGLE_CREDENTIALS) {
+    // GOOGLE_CREDENTIALS should be a JSON string of the service account
+    const parsed = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+    // Normalize private_key newlines if they are escaped (\\n -> \n)
+    if (parsed.private_key && parsed.private_key.includes('\\n')) {
+      parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+    }
+    googleAuthConfig = { credentials: parsed, scopes: ['https://www.googleapis.com/auth/spreadsheets'] };
+    console.log('GoogleAuth using credentials from GOOGLE_CREDENTIALS env var');
+  } else if (fs.existsSync('/etc/secrets/credentials.json')) {
+    googleAuthConfig = { keyFile: '/etc/secrets/credentials.json', scopes: ['https://www.googleapis.com/auth/spreadsheets'] };
+    console.log('GoogleAuth using key file at /etc/secrets/credentials.json');
+  } else if (fs.existsSync('credentials.json')) {
+    googleAuthConfig = { keyFile: 'credentials.json', scopes: ['https://www.googleapis.com/auth/spreadsheets'] };
+    console.log('GoogleAuth using local credentials.json file');
+  } else {
+    console.warn('No Google credentials found. Set GOOGLE_CREDENTIALS env var or provide credentials.json.');
+    googleAuthConfig = { scopes: ['https://www.googleapis.com/auth/spreadsheets'] };
+  }
+} catch (e) {
+  console.error('Failed to parse GOOGLE_CREDENTIALS env var:', e);
+  googleAuthConfig = { scopes: ['https://www.googleapis.com/auth/spreadsheets'] };
+}
 
-app.use(cors({
-  origin: [
-    'https://web-app-p658.onrender.com',
-    'http://localhost:5173',
-    'http://localhost:3000'
-  ],
-  credentials: true
-}));
+const auth = new google.auth.GoogleAuth(googleAuthConfig);
+
+app.use(cors());
 app.use(bodyParser.json());
 
+
+// --- QR Scan and Highlight Logic ---
 async function highlightRow(qrId) {
+  console.log('Starting highlightRow for qrId:', qrId);
+  const client = await auth.getClient();
+  const sheets = google.sheets({ version: 'v4', auth: client });
+
+  // Lookup sheetId for the given SHEET_NAME
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+  const sheet = meta.data.sheets?.find(s => s.properties?.title === SHEET_NAME);
+  const sheetId = sheet?.properties?.sheetId;
+  if (sheetId === undefined) {
+    console.error('Sheet not found with name:', SHEET_NAME);
+    return { found: false };
+  }
+
+  // Get all rows
+  console.log('Fetching sheet values for range:', SHEET_NAME);
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: SHEET_NAME,
+  });
+  const rows = res.data.values;
+  if (!rows || rows.length === 0) {
+    console.warn('No values returned from sheet');
+    return { found: false };
+  }
+
+  let rowIndex = -1;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][8] === qrId) { 
+      rowIndex = i + 1; 
+      break;
+    }
+  }
+  console.log('QR_ID:', qrId, 'Row found at:', rowIndex);
+  if (rowIndex === -1) return { found: false };
+
+  
   try {
-    console.log('Authenticating with Google Sheets API...');
-    const client = await auth.getClient();
-    console.log('Authentication successful');
-    const sheets = google.sheets({ version: 'v4', auth: client });
-
-    // Get all rows
-    console.log('Fetching data from Google Sheet...');
-    const res = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: SHEET_NAME,
-    });
-    const rows = res.data.values;
-    if (!rows || rows.length === 0) {
-      console.log('No data found in sheet');
-      return { found: false, message: 'No data in sheet' };
-    }
-
-    let rowIndex = -1;
-    for (let i = 1; i < rows.length; i++) {
-      if (rows[i] && rows[i][8] === qrId) { // Check QR ID in column I (index 8)
-        rowIndex = i + 1;
-        break;
-      }
-    }
-    console.log('QR_ID:', qrId, 'Row found at:', rowIndex);
-    if (rowIndex === -1) {
-      console.log('QR_ID not found in sheet');
-      return { found: false, message: 'QR_ID not found' };
-    }
-
-    // Highlight the row
-    console.log('Highlighting row:', rowIndex);
+  console.log('Sending batchUpdate to highlight row:', rowIndex, 'in sheetId:', sheetId);
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: SPREADSHEET_ID,
       requestBody: {
@@ -72,13 +98,13 @@ async function highlightRow(qrId) {
           {
             repeatCell: {
               range: {
-                sheetId: 0,
+        sheetId, 
                 startRowIndex: rowIndex - 1,
                 endRowIndex: rowIndex,
               },
               cell: {
                 userEnteredFormat: {
-                  backgroundColor: { red: 1, green: 1, blue: 0 }, // Yellow
+                  backgroundColor: { red: 1, green: 1, blue: 0 },
                 },
               },
               fields: 'userEnteredFormat.backgroundColor',
@@ -88,23 +114,15 @@ async function highlightRow(qrId) {
       },
     });
     console.log('Row', rowIndex, 'highlighted successfully.');
-    return { found: true };
   } catch (err) {
-    console.error('Error in highlightRow:', {
-      message: err.message,
-      stack: err.stack,
-      errors: err.errors || 'No additional error details',
-      response: err.response ? err.response.data : 'No response data',
-    });
-    throw err;
+    console.error('Error highlighting row via batchUpdate:', err.response?.data || err.message || err);
   }
+  return { found: true };
 }
 
 app.post('/api/scan', async (req, res) => {
   const { qrId } = req.body;
-  console.log('Received /api/scan request with body:', req.body);
   if (!qrId) {
-    console.log('No qrId provided in request');
     return res.status(400).json({ success: false, message: 'qrId is required' });
   }
   try {
@@ -112,16 +130,14 @@ app.post('/api/scan', async (req, res) => {
     if (result.found) {
       res.json({ success: true });
     } else {
-      res.json({ success: false, message: result.message || 'QR_ID not found' });
+      res.json({ success: false, message: 'QR_ID not found' });
     }
   } catch (err) {
-    console.error('Error in /api/scan:', {
-      message: err.message,
-      stack: err.stack,
-    });
-    res.status(500).json({ success: false, message: 'Server error', error: err.message });
+    console.error('Error in /api/scan:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
+
 
 const FIXED_USER = { username: 'admin', password: 'password123' };
 
@@ -134,5 +150,5 @@ app.post('/api/login', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
